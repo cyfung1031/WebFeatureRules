@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>WebFeatureRules Demo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    :root {
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    .theme-dark:root {
+      background: #1e1e1e;
+      color: #d4d4d4;
+    }
+
+    .theme-light:root {
+      background: #f5f5f5;
+      color: #333;
+    }
+
+    header {
+      padding: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .theme-dark header {
+      background: #252526;
+      border-bottom: 1px solid #3e3e42;
+    }
+
+    .theme-light header {
+      background: #007acc;
+      color: white;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 400;
+    }
+
+    /* Theme Switch Toggle */
+    .theme-switch {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .theme-toggle {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 24px;
+    }
+
+    .theme-toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #ccc;
+      border-radius: 24px;
+    }
+
+    .theme-toggle-animation .slider {
+      transition: background-color 0.4s;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background: #fff;
+      border-radius: 50%;
+    }
+
+    .theme-toggle-animation .slider:before {
+      transition: transform 0.4s;
+    }
+
+    input:checked+.slider {
+      background: #2196F3;
+    }
+
+    input:checked+.slider:before {
+      transform: translateX(26px);
+    }
+
+    .theme-label {
+      font-size: 14px;
+      margin-right: 8px;
+    }
+
+    .theme-dark .theme-label {
+      color: #d4d4d4;
+    }
+
+    .theme-light .theme-label {
+      color: #fff;
+    }
+
+    main {
+      max-width: 900px;
+      margin: 20px auto;
+      padding: 20px;
+    }
+
+    .description {
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+
+    .theme-dark .description {
+      color: #9d9d9d;
+    }
+
+    .theme-light .description {
+      color: #666;
+    }
+
+    .editor-container,
+    .examples-container,
+    .test-container {
+      border-radius: 4px;
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+    }
+
+    .theme-dark .editor-container,
+    .theme-dark .examples-container,
+    .theme-dark .test-container {
+      background: #252526;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+
+    .theme-light .editor-container,
+    .theme-light .examples-container,
+    .theme-light .test-container {
+      background: #f0f0f0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .section-header {
+      padding: 0.75rem 0;
+      font-size: 1.2rem;
+      font-weight: 400;
+    }
+
+    .theme-dark .section-header {
+      color: #ffffff;
+    }
+
+    .theme-light .section-header {
+      color: #333;
+    }
+
+    .editor {
+      height: 400px;
+      resize: vertical;
+      font-family: "Source Code Pro", monospace;
+      font-size: 14px;
+      padding: 1rem;
+    }
+
+
+    .theme-toggle-animation .editor {
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    .theme-dark .editor {
+      background: #1e1e1e;
+      color: #d4d4d4;
+    }
+
+    .theme-light .editor {
+      background: #ffffff;
+      color: #333;
+    }
+
+    .editor-buttons {
+      margin-top: 0.5rem;
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    button {
+      padding: 0.4rem 0.85rem;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .theme-dark button {
+      background: #0e639c;
+      color: white;
+    }
+
+    .theme-dark button:hover {
+      background: #1177bb;
+    }
+
+    .theme-light button {
+      background: #007acc;
+      color: white;
+    }
+
+    .theme-light button:hover {
+      background: #0069b3;
+    }
+
+    /* Examples Accordion */
+    .accordion {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .accordion-item {
+      border: 1px solid;
+      border-radius: 3px;
+    }
+
+    .theme-dark .accordion-item {
+      border-color: #3e3e42;
+    }
+
+    .theme-light .accordion-item {
+      border-color: #e0e0e0;
+    }
+
+    .accordion-header {
+      padding: 0.75rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .accordion-header:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .accordion-title {
+      font-size: 1rem;
+    }
+
+    .accordion-content {
+      max-height: 0;
+      overflow: hidden;
+    }
+
+    .theme-toggle-animation .accordion-content {
+      transition: max-height 0.3s ease;
+    }
+
+    .accordion-content.open {
+      max-height: 300px;
+      /* Adjust based on content */
+    }
+
+    .accordion-description {
+      padding: 0.75rem;
+      font-size: 0.9rem;
+      color: #9d9d9d;
+    }
+
+    .theme-light .accordion-description {
+      color: #666;
+    }
+
+    .accordion-code {
+      padding: 0.75rem;
+      font-family: "Source Code Pro", monospace;
+      font-size: 13px;
+      background: rgba(0, 0, 0, 0.1);
+      white-space: pre-wrap;
+    }
+
+    .accordion-actions {
+      padding: 0.75rem;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    /* Test Section */
+    .test-input {
+      display: flex;
+      gap: 0.5rem;
+      position: relative;
+    }
+
+    input[type="url"] {
+      flex: 1;
+      padding: 0.5rem;
+      border: 1px solid;
+      border-radius: 3px;
+    }
+
+    .theme-toggle-animation input[type="url"] {
+      transition: border-color 0.3s ease;
+    }
+
+    .theme-dark input[type="url"] {
+      background: #333;
+      color: #d4d4d4;
+      border-color: #3e3e42;
+    }
+
+    .theme-light input[type="url"] {
+      background: #fff;
+      color: #333;
+      border-color: #e0e0e0;
+    }
+
+    input[type="url"].invalid {
+      border-color: #f14c4c;
+    }
+
+    .validation-message {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      background: #f14c4c;
+      color: white;
+      padding: 0.3rem 0.6rem;
+      border-radius: 3px;
+      font-size: 0.8rem;
+      margin-top: 0.3rem;
+      display: none;
+    }
+
+    input[type="url"].invalid+.validation-message {
+      display: block;
+    }
+
+    .results {
+      margin-top: 1rem;
+      padding: 1rem;
+      border: 1px solid;
+      border-radius: 3px;
+      font-family: "Source Code Pro", monospace;
+      font-size: 14px;
+      white-space: pre-wrap;
+    }
+
+    .theme-dark .results {
+      background: #1e1e1e;
+      border-color: #3e3e42;
+    }
+
+    .theme-light .results {
+      background: #ffffff;
+      border-color: #e0e0e0;
+    }
+
+    /* WFR Syntax Highlighting (Dark Theme) */
+    .theme-dark .wfr-comment {
+      color: #608b4e;
+      font-style: italic;
+    }
+
+    .theme-dark .wfr-selector-bracket {
+      color: #c586c0;
+      font-weight: bold;
+    }
+
+    .theme-dark .wfr-selector-attribute {
+      color: #4fc1ff;
+    }
+
+    .theme-dark .wfr-selector-operator {
+      color: #d4d4d4;
+    }
+
+    .theme-dark .wfr-selector-value {
+      color: #ce9178;
+    }
+
+    .theme-dark .wfr-selector-regex-prefix {
+      color: #d7ba7d;
+      font-weight: bold;
+    }
+
+    .theme-dark .wfr-selector-regex-pattern {
+      color: #d16969;
+    }
+
+    .theme-dark .wfr-block-bracket {
+      color: #c586c0;
+      font-weight: bold;
+    }
+
+    .theme-dark .wfr-feature-name {
+      color: #9cdcfe;
+    }
+
+    .theme-dark .wfr-feature-colon {
+      color: #d4d4d4;
+    }
+
+    .theme-dark .wfr-feature-value {
+      color: #b5cea8;
+    }
+
+    .theme-dark .wfr-feature-semicolon {
+      color: #d4d4d4;
+    }
+
+    .theme-dark .wfr-comma {
+      color: #d4d4d4;
+    }
+
+    /* WFR Syntax Highlighting (Light Theme) */
+    .theme-light .wfr-comment {
+      color: #008000;
+      font-style: italic;
+    }
+
+    .theme-light .wfr-selector-bracket {
+      color: #800080;
+      font-weight: bold;
+    }
+
+    .theme-light .wfr-selector-attribute {
+      color: #0000ff;
+    }
+
+    .theme-light .wfr-selector-operator {
+      color: #666666;
+    }
+
+    .theme-light .wfr-selector-value {
+      color: #a31515;
+    }
+
+    .theme-light .wfr-selector-regex-prefix {
+      color: #795e26;
+      font-weight: bold;
+    }
+
+    .theme-light .wfr-selector-regex-pattern {
+      color: #811f3f;
+    }
+
+    .theme-light .wfr-block-bracket {
+      color: #800080;
+      font-weight: bold;
+    }
+
+    .theme-light .wfr-feature-name {
+      color: #0070c1;
+    }
+
+    .theme-light .wfr-feature-colon {
+      color: #666666;
+    }
+
+    .theme-light .wfr-feature-value {
+      color: #098658;
+    }
+
+    .theme-light .wfr-feature-semicolon {
+      color: #666666;
+    }
+
+    .theme-light .wfr-comma {
+      color: #666666;
+    }
+
+    .codejar-bracket-matching,
+    .matching {
+      outline: 1px solid currentColor;
+    }
+  </style>
+</head>
+
+<body class="theme-dark">
+  <header>
+    <h1>WebFeatureRules Demo</h1>
+    <div class="theme-switch">
+      <span class="theme-label">Dark</span>
+      <label class="theme-toggle">
+        <input type="checkbox" id="theme-toggle" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+  </header>
+  <main>
+    <p class="description">
+      Explore WebFeatureRules (WFR) with this interactive demo. Write or load WFR code, test it against URLs, and see
+      the results instantly. WFR lets you define rules to apply features based on URL attributes like host, domain,
+      path, and query parameters.
+    </p>
+
+    <div class="editor-container">
+      <h2 class="section-header">WFR Editor</h2>
+      <div class="editor" data-gramm="false"></div>
+      <div class="editor-buttons">
+        <button id="copy-btn">Copy to Clipboard</button>
+        <button id="clear-btn">Clear</button>
+      </div>
+    </div>
+
+    <div class="examples-container">
+      <h2 class="section-header">Examples</h2>
+      <div class="accordion" id="examples-accordion"></div>
+    </div>
+
+    <div class="test-container">
+      <h2 class="section-header">Test URL</h2>
+      <div class="test-input">
+        <input type="url" id="test-url" placeholder="Enter URL (e.g., https://example.com/blog?post=1)">
+        <span class="validation-message"></span>
+        <button id="test-btn">Test</button>
+      </div>
+      <div class="results" id="results">Results will appear here after testing a URL.</div>
+    </div>
+  </main>
+
+  <script>
+
+    document.documentElement.className = `theme-${localStorage.getItem('wfr-theme') || 'dark'}`;
+  </script>
+
+  <script type="module">
+    // import { CodeJar } from 'https://cdn.jsdelivr.net/npm/codejar@4.2.0/dist/codejar.min.js';
+    import { CodeJar } from '../lib/codejar.esm.js';
+    import { getWfrFeatures, highlight } from '../dist/wfr-syntax.es.js';
+
+
+    // --- Initialization ---
+    const init = () => {
+      return new Promise((resolve) => {
+        if (document.readyState !== "loading") resolve();
+        else window.addEventListener("DOMContentLoaded", resolve, false);
+      });
+    };
+
+    init().then(() => {
+      const editor = document.querySelector('.editor');
+      const testUrlInput = document.getElementById('test-url');
+      const validationMessage = testUrlInput.nextElementSibling;
+      const results = document.getElementById('results');
+      const examplesAccordion = document.getElementById('examples-accordion');
+      const themeToggle = document.getElementById('theme-toggle');
+
+      // Theme Switching
+      const savedTheme = localStorage.getItem('wfr-theme') || 'dark';
+      document.documentElement.className = `theme-${savedTheme}`;
+      themeToggle.checked = savedTheme === 'dark';
+
+      document.documentElement.classList.add('theme-toggle-animation');
+      themeToggle.addEventListener('change', () => {
+        const newTheme = themeToggle.checked ? 'dark' : 'light';
+        document.documentElement.className = `theme-${newTheme}`;
+        localStorage.setItem('wfr-theme', newTheme);
+      });
+
+      // Initialize CodeJar Editor
+      const jar = CodeJar(editor, highlight, {
+        tab: '  ',
+        indentOn: /[{]$/,
+        spellcheck: false,
+        bracketMatchingClass: 'codejar-bracket-matching',
+        bracketMatching: true
+      });
+
+      const defaultCode = `// Default WFR Example\n[domain=example.com] {\n  featureA: on;\n}`;
+      jar.updateCode(localStorage.getItem('wfr-code') || defaultCode);
+      jar.onUpdate(code => localStorage.setItem('wfr-code', code));
+
+      // Copy to Clipboard
+      document.getElementById('copy-btn').addEventListener('click', () => {
+        navigator.clipboard.writeText(jar.toString()).then(() => alert('WFR code copied to clipboard!'));
+      });
+
+      // Clear Editor
+      document.getElementById('clear-btn').addEventListener('click', () => {
+        jar.updateCode('');
+        results.textContent = 'Results will appear here after testing a URL.';
+      });
+
+      // WFR Examples with Example URLs
+      const examples = [
+        {
+          title: 'Simple Matches',
+          code: `[domain=example.com] {\n  featureA: on;\n}\n\n[host=www.example.com] {\n  featureB: off;\n}`,
+          description: 'Basic domain and host matching with two blocks.',
+          exampleUrl: 'https://www.example.com'
+        },
+        {
+          title: 'Wildcard and Path',
+          code: `[host=*.example.com] {\n  featureC: on;\n}\n\n[domain=example.com][path=/blog/*] {\n  featureD: off;\n}`,
+          description: 'Wildcard for host and path matching across two rules.',
+          exampleUrl: 'https://sub.example.com/blog/post1'
+        },
+        {
+          title: 'Query Parameters',
+          code: `[query.mode] {\n  featureE: on;\n}\n\n[query.mode=debug] {\n  featureF: off;\n}`,
+          description: 'Rules based on query parameter presence and value.',
+          exampleUrl: 'https://example.com/?mode=debug'
+        },
+        {
+          title: 'Regex Patterns',
+          code: `[domain=regex:/^(\\w+\\.)?example\\.com$/] {\n  featureG: on;\n}\n\n[path=regex:/^\\/articles\\/\\d+$/] {\n  featureH: on;\n}`,
+          description: 'Regular expressions for domain and path matching.',
+          exampleUrl: 'https://sub.example.com/articles/123'
+        },
+        {
+          title: 'Specificity and OR Logic',
+          code: `[domain=example.com] {\n  featureI: on;\n}\n\n[domain=example.com][path=/special] {\n  featureI: off;\n}\n\n[domain=example.com], [domain=another.com] {\n  featureJ: off;\n}`,
+          description: 'Demonstrates specificity and OR logic with multiple blocks.',
+          exampleUrl: 'https://example.com/special'
+        }
+      ];
+
+      examples.forEach(example => {
+        const item = document.createElement('div');
+        item.className = 'accordion-item';
+        item.innerHTML = `
+          <div class="accordion-header">
+            <span class="accordion-title">${example.title}</span>
+            <span>▶</span>
+          </div>
+          <div class="accordion-content">
+            <div class="accordion-description">${example.description}</div>
+            <div class="accordion-code">${example.code}</div>
+            <div class="accordion-actions">
+              <button class="try-btn">Try It</button>
+            </div>
+          </div>
+        `;
+        const header = item.querySelector('.accordion-header');
+        const content = item.querySelector('.accordion-content');
+        const tryBtn = item.querySelector('.try-btn');
+
+        header.addEventListener('click', () => {
+          const isOpen = content.classList.toggle('open');
+          header.querySelector('span:last-child').textContent = isOpen ? '▼' : '▶';
+        });
+
+        tryBtn.addEventListener('click', () => tryExample(example.code, example.exampleUrl));
+        examplesAccordion.appendChild(item);
+      });
+
+      // Enhanced URL Validation (Fixed Domain Check)
+      function validateUrl(url) {
+        if (!url) {
+          testUrlInput.classList.add('invalid');
+          validationMessage.textContent = 'Please enter a URL.';
+          return false;
+        }
+        if (!/^(https?:\/\/)/i.test(url)) {
+          testUrlInput.classList.add('invalid');
+          validationMessage.textContent = 'URL must start with http:// or https://';
+          return false;
+        }
+        // Fixed regex: Matches subdomains and multiple levels (e.g., sub.example.co.uk)
+        if (!/https?:\/\/([^\s:\/\[\]\(\)\{\}\?\!\@\#\$\%\&\^\*\+\=\|\\\~\`\<\>\,\.]+\.)*[^\s:\/\[\]\(\)\{\}\?\!\@\#\$\%\&\^\*\+\=\|\\\~\`\<\>\,\.]+\.[^\s:\/\[\]\(\)\{\}\?\!\@\#\$\%\&\^\*\+\=\|\\\~\`\<\>\,\.]{2,}(\/|$)/i.test(url)) {
+          testUrlInput.classList.add('invalid');
+          validationMessage.textContent = 'URL must include a valid domain (e.g., example.com, sub.example.co.uk)';
+          return false;
+        }
+        // if (/[^\w\d\-.:/?&=]/.test(url.split('//')[1] || url)) {
+        //   testUrlInput.classList.add('invalid');
+        //   validationMessage.textContent = 'URL contains invalid characters. Use letters, numbers, and common symbols (e.g., -, ., /, ?, =)';
+        //   return false;
+        // }
+        if (url.length < 10) {
+          testUrlInput.classList.add('invalid');
+          validationMessage.textContent = 'URL seems too short. Include a valid domain and path.';
+          return false;
+        }
+        testUrlInput.classList.remove('invalid');
+        validationMessage.textContent = '';
+        return true;
+      }
+
+      testUrlInput.addEventListener('input', () => {
+        const url = testUrlInput.value.trim();
+        validateUrl(url);
+      });
+
+      // Test Function
+      function testUrl(code, url) {
+        if (!validateUrl(url)) {
+          results.textContent = 'Please fix the URL above and click "Test" to see results.';
+          return;
+        }
+        console.log(getWfrFeatures)
+
+        const result = getWfrFeatures(code, url);
+        console.log(result);
+        
+
+        // try {
+        //   const rules = parseRules(code);
+        //   const matchedRules = [];
+        //   let featureValues = {};
+
+        //   rules.forEach(rule => {
+        //     const urlObj = new URL(url);
+        //     const matches = rule.selectors.some(selectorGroup =>
+        //       selectorGroup.every(condition => {
+        //         const attrValue = condition.attribute === 'host' || condition.attribute === 'domain' ? urlObj.hostname :
+        //           condition.attribute === 'path' ? urlObj.pathname :
+        //             condition.attribute.startsWith('query.') ? urlObj.searchParams.get(condition.attribute.substring(6)) : null;
+        //         if (attrValue === null) return false;
+        //         if (condition.isRegex) {
+        //           const [, pattern, flags] = condition.value.match(/^\/(.*)\/([a-z]*)$/) || [, condition.value, ''];
+        //           return new RegExp(pattern, flags).test(attrValue);
+        //         }
+        //         if (condition.attribute === 'domain' && !/[?*]/.test(condition.value)) {
+        //           return attrValue === condition.value || attrValue.endsWith('.' + condition.value);
+        //         }
+        //         const regexPattern = condition.value.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.');
+        //         return new RegExp('^' + regexPattern + '$').test(attrValue);
+        //       })
+        //     );
+        //     if (matches) {
+        //       matchedRules.push(rule);
+        //       Object.assign(featureValues, rule.features);
+        //     }
+        //   });
+
+        //   results.textContent = matchedRules.length > 0 ?
+        //     `Matched Rules:\n${matchedRules.map((r, i) => `${i + 1}. ${r.selectors.map(s => s.map(c => `[${c.attribute}${c.operator}${c.value}]`).join('')).join(', ')} {\n${Object.entries(r.features).map(([k, v]) => `  ${k}: ${v};`).join('\n')}\n}`).join('\n')}\n\nFinal Feature Values:\n${Object.entries(featureValues).map(([k, v]) => `${k}: ${v}`).join('\n')}` :
+        //     'No rules matched the URL.';
+        // } catch (e) {
+        //   results.textContent = `Syntax Error in WFR Code: Please check your rules for mistakes (e.g., missing brackets or semicolons).`;
+        // }
+        
+          results.textContent = Object.entries(result).length > 0 ?
+            `${Object.entries(result).map(([key,value], idx)=>`${key}: ${value}`).join('\n')}` :
+            'No rules matched the URL.';
+
+      }
+
+      // Test from Editor
+      document.getElementById('test-btn').addEventListener('click', () => {
+        const url = testUrlInput.value.trim();
+        testUrl(jar.toString(), url);
+      });
+
+      // Try Example (Load Code and URL, Prompt to Test)
+      function tryExample(code, exampleUrl) {
+        jar.updateCode(code); // Load into editor
+        testUrlInput.value = exampleUrl; // Set example URL
+        validateUrl(exampleUrl); // Validate the new URL
+        results.textContent = `Example loaded! Click "Test" to see the results for "${exampleUrl}".`; // Clear previous results and prompt
+      }
+    });
+  </script>
+</body>
+
+</html>

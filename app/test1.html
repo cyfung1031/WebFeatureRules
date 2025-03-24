@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WFR Parser Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        textarea,
+        input {
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 5px;
+            font-family: monospace;
+        }
+
+        textarea {
+            height: 200px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #results {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>WFR Parser Test</h1>
+    <label for="wfrText">WFR Text:</label>
+    <textarea id="wfrText">
+[domain=example.com] {
+  featureA: on;
+}
+[domain=example.com][path=/blog/*] {
+  featureA: off;
+  featureB: on;
+}
+    </textarea>
+
+    <label for="url">URL:</label>
+    <input id="url" type="text" value="https://example.com/blog/post1">
+
+    <button onclick="runTest()">Run Test</button>
+    <div id="results"></div>
+
+    <!-- Ensure wfr-matcher.js is loaded before test script -->
+    <!-- <script src="../dist/wfr-syntax.umd.js"></script> -->
+     <script type="module">
+        import {getWfrFeatures} from '../src/wfr-matcher.js';
+        window.getWfrFeatures = getWfrFeatures;
+     </script>
+    <script>
+        setTimeout(()=>{
+            const getWfrFeatures = window.getWfrFeatures || WfrSyntax.getWfrFeatures;
+        // const getWfrFeatures = WfrSyntax.getWfrFeatures;
+        // const {getWfrFeatures} = WfrSyntax;
+        // Define runTest globally
+        window.runTest = function () {
+            const wfrText = document.getElementById('wfrText').value;
+            const url = document.getElementById('url').value;
+            const resultsDiv = document.getElementById('results');
+            try {
+                if (typeof getWfrFeatures !== 'function') {
+                    throw new Error('wfr-matcher.js not loaded correctly');
+                }
+                const features = getWfrFeatures(wfrText, url);
+                console.log(features)
+                const resultText = `URL: ${url}\nFeatures: ${JSON.stringify(features, null, 2)}`;
+                console.log('Test Result:', features);
+                resultsDiv.textContent = resultText;
+            } catch (error) {
+                const errorText = `Error: ${error.message}`;
+                console.error('Test Error:', error);
+                resultsDiv.textContent = errorText;
+            }
+        };
+
+        // Run test cases only after DOM and scripts are loaded
+        document.addEventListener('DOMContentLoaded', function () {
+            if (typeof getWfrFeatures === 'undefined') {
+                console.error('wfr-matcher.js failed to load');
+                document.getElementById('results').textContent = 'Error: wfr-matcher.js not loaded';
+                return;
+            }
+
+            // Run predefined test cases
+            const testCases = [
+                // Existing Test Cases (Updated for New Glob Syntax)
+                {
+                    wfrText: '[domain=example.com] {\n  featureA: on;\n}',
+                    url: 'https://example.com/',
+                    expected: { featureA: 'on' },
+                    description: 'Basic domain match.'
+                },
+                {
+                    wfrText: `
+            [domain=example.com] {
+                featureA: on;
+            }
+            [domain=example.com][path=/blog/*] {
+                featureA: off;
+                featureB: on;
+            }
+            `,
+                    url: 'https://example.com/blog/post1',
+                    expected: { featureA: 'off', featureB: 'on' },
+                    description: 'Glob * in path matches single segment.'
+                },
+                {
+                    wfrText: `
+            [domain=example.com] {
+                featureA: on;
+            }
+            [domain=example.com][path=/blog/*] {
+                featureA: off;
+                featureB: on;
+            }
+            `,
+                    url: 'https://another.com/',
+                    expected: {},
+                    description: 'No match for different domain.'
+                },
+                {
+                    wfrText: '[domain=regex:/^(\\w+\\.)?example\\.com$/] {\n  featureA: on;\n}',
+                    url: 'https://sub.example.com/',
+                    expected: { featureA: 'on' },
+                    description: 'Regex domain matches subdomain.'
+                },
+                {
+                    wfrText: '[host=www.example.com] {\n  featureX: on;\n}',
+                    url: 'https://www.example.com/path',
+                    expected: { featureX: 'on' },
+                    description: 'Exact host match.'
+                },
+                {
+                    wfrText: '[path=/about] {\n  featureY: off;\n}',
+                    url: 'https://example.com/about',
+                    expected: { featureY: 'off' },
+                    description: 'Exact path match.'
+                },
+                {
+                    wfrText: '[query.mode] {\n  featureZ: on;\n}',
+                    url: 'https://site.com/page?mode=test',
+                    expected: { featureZ: 'on' },
+                    description: 'Query parameter presence check.'
+                },
+                {
+                    wfrText: '[host=*.example.com] {\n  featureA: on;\n}',
+                    url: 'https://sub.example.com/',
+                    expected: { featureA: 'on' },
+                    description: 'Glob * in host matches single-segment subdomain.'
+                },
+                {
+                    wfrText: '[path=/page?] {\n  featureB: off;\n}',
+                    url: 'https://example.com/page1',
+                    expected: { featureB: 'off' },
+                    description: 'Glob ? in path matches(single character.'
+                },
+                {
+                    wfrText: '[host=regex:/^sub\\d+\\.example\\.com$/] {\n  featureC: on;\n}',
+                    url: 'https://sub123.example.com/',
+                    expected: { featureC: 'on' },
+                    description: 'Regex host match.'
+                },
+                {
+                    wfrText: '[path=:/^\\/articles\\/\\d+$/] {\n  featureD: on;\n}',
+                    url: 'https://site.com/articles/456',
+                    expected: { featureD: 'on' },
+                    description: 'Regex path match.'
+                },
+                {
+                    wfrText: '[query.id=re:/^\\d+$/] {\n  featureE: on;\n}',
+                    url: 'https://example.com/?id=789',
+                    expected: { featureE: 'on' },
+                    description: 'Regex query match.'
+                },
+                {
+                    wfrText: `
+            [domain=example.com] {
+                featureF: on;
+            }
+            [domain=example.com][path=/blog/*][query.mode=debug] {
+                featureF: off;
+                featureG: on;
+            }
+            `,
+                    url: 'https://example.com/blog/post?mode=debug',
+                    expected: { featureF: 'off', featureG: 'on' },
+                    description: 'AND logic with glob * in path and exact query.'
+                },
+                {
+                    wfrText: `
+            [host=www.example.com] {
+                featureH: on;
+            }
+            [host=regex:/^www\\.example\\.com$/][path=/secure/*] {
+                featureH: off;
+                featureI: on;
+            }
+            `,
+                    url: 'https://www.example.com/secure/data',
+                    expected: { featureH: 'off', featureI: 'on' },
+                    description: 'Regex host and glob * in path override.'
+                },
+                {
+                    wfrText: '[domain=example.com], [domain=site.com] {\n  featureJ: on;\n}',
+                    url: 'https://site.com/',
+                    expected: { featureJ: 'on' },
+                    description: 'OR logic with multiple domains.'
+                },
+                {
+                    wfrText: `
+            [domain=example.com] {
+                featureK: on;
+            }
+            [domain=example.com][path=/test] {
+                featureK: off;
+            }
+            [domain=example.com][path=/test][query.id=123] {
+                featureK: yes;
+                featureL: on;
+            }
+            `,
+                    url: 'https://example.com/test?id=123',
+                    expected: { featureK: 'yes', featureL: 'on' },
+                    description: 'Sequential override with exact matches.'
+                },
+                {
+                    wfrText: `
+            // Enable feature on example.com
+            [domain=example.com] {
+                featureM: on;
+            }
+            /* Disable on blog pages
+            with multiple lines */
+            [domain=example.com][path=/blog/*] {
+                featureM: off;
+            }
+            `,
+                    url: 'https://example.com/blog/post',
+                    expected: { featureM: 'off' },
+                    description: 'Comments with glob * in path.'
+                },
+                {
+                    wfrText: '[domain=regex:/^(\\w+\\.)?example\\.com$/i] {\n  featureN: on;\n}',
+                    url: 'https://SUB.example.com/',
+                    expected: { featureN: 'on' },
+                    description: 'Case-insensitive regex domain match.'
+                },
+                {
+                    wfrText: `
+            [domain=site.com] {
+                featureA: off;
+                featureB: off;
+                featureC: off;
+            }
+            [domain=example.com { // Missing closing ]
+                featureA: on;
+                featureB: on;
+                featureC: on;
+            }
+            [domain=site.com] {
+                featureB: on;
+                featureC: on;
+            }
+            `,
+                    url: 'https://site.com/',
+                    expected: { featureA: 'off', featureB: 'on', featureC: 'on' },
+                    description: 'Malformed rule skipped, valid rules applied.'
+                },
+                {
+                    wfrText: `
+            [domain=site.com] {
+                featureA: on;
+                featureB: on;
+                featureC: on;
+            }
+            [path=:/^/ar[3]]ticles/\\d+$/] { // wrong regular expression
+                featureA: off;
+                featureB: off;
+                featureC: off;
+            }
+            [domain=site.com] {
+                featureA: off;
+                featureC: off;
+            }
+            `,
+                    url: 'https://site.com/articles/456',
+                    expected: { featureA: 'off', featureB: 'on', featureC: 'off' },
+                    description: 'Invalid regex skipped, valid rules applied.'
+                },
+                {
+                    wfrText: '[query.id=*] {\n  featureQ: on;\n}',
+                    url: 'https://example.com/?id=123',
+                    expected: { featureQ: 'on' },
+                    description: 'Glob * in query matches single-segment value.'
+                },
+                {
+                    wfrText: '[query.id=*] {\n  featureQ: on;\n}',
+                    url: 'https://example.com/?id=abc',
+                    expected: { featureQ: 'on' },
+                    description: 'Glob * in query matches single-segment value.'
+                },
+                {
+                    wfrText: '[query.id=*] {\n  featureQ: on;\n}',
+                    url: 'https://example.com/?other=123',
+                    expected: {},
+                    description: 'Glob * in query with no matching param.'
+                },
+                {
+                    wfrText: `
+            [domain=example.com] {
+                featureS: on;
+            }
+            [domain=example.com][path=/test] {
+                featureS: off;
+            }
+            [domain=example.com][path=/test][query.id=123] {
+                featureS: yes;
+            }
+            [domain=example.com] {
+                featureS: maybe;
+            }
+            `,
+                    url: 'https://example.com/test?id=123',
+                    expected: { featureS: 'maybe' },
+                    description: 'Last matching rule wins with equal specificity.'
+                },
+                {
+                    wfrText: `
+            [domain=example.com] {
+                featureT: on;
+            }
+            [domain=example.com] {
+                featureT: off;
+            }
+            `,
+                    url: 'https://example.com/',
+                    expected: { featureT: 'off' },
+                    description: 'Equal specificity, last rule wins.'
+                },
+                {
+                    wfrText: '[query.mode=*] {\n  featureQ1: on;\n}',
+                    url: 'https://example.com/?mode=debug',
+                    expected: { featureQ1: 'on' },
+                    description: 'Glob * in query matches single-segment value.'
+                },
+                {
+                    wfrText: '[query.mode=*] {\n  featureQ1: on;\n}',
+                    url: 'https://example.com/?other=test',
+                    expected: {},
+                    description: 'Glob * in query with no matching param.'
+                },
+                {
+                    wfrText: `
+            [domain=example.com] {
+                featureP1: on;
+            }
+            [domain=example.com][path=/test] {
+                featureP1: off;
+                featureP2: on;
+            }
+            [domain=example.com][path=/test][query.id=123] {
+                featureP1: yes;
+                featureP2: off;
+            }
+            [domain=example.com][path=/test] {
+                featureP1: maybe;
+            }
+            `,
+                    url: 'https://example.com/test?id=123',
+                    expected: { featureP1: 'maybe', featureP2: 'off' },
+                    description: 'Last matching rule wins with path specificity.'
+                },
+                {
+                    wfrText: `
+            [domain=site.com] {
+                featureM1: on;
+            }
+            [path=:/unclosed[ {  // Invalid regex
+                featureM1: off;
+            }
+            [domain=site.com][path=/page] {
+                featureM1: off;
+                featureM2: on;
+            }
+            `,
+                    url: 'https://site.com/page',
+                    expected: { featureM1: 'off', featureM2: 'on' },
+                    description: 'Invalid regex skipped, valid rule applied.'
+                },
+
+                // Updated Advanced Usage Examples with New Glob Syntax
+                {
+                    wfrText: `
+            [domain=example.com][path=/blog/**] {
+                featureX1: on;
+                featureX2: off;
+            }
+            [host=www.example.com], [host=admin.example.com] {
+                featureX1: off;
+                featureX3: on;
+            }
+            [domain=example.com][query.mode=debug] {
+                featureX1: yes;
+                featureX2: maybe;
+            }
+            `,
+                    url: 'https://www.example.com/blog/sub/post?mode=debug',
+                    expected: { featureX1: 'yes', featureX2: 'maybe', featureX3: 'on' },
+                    description: 'Tests AND with ** in path (multi-segment), OR with exact hosts, and query override.'
+                },
+                {
+                    wfrText: `
+            [domain=example.com] {
+                featureY1: on;
+            }
+            [domain=example.com][path=regex:/^\\/articles\\/\\d+$/] {
+                featureY1: off;
+                featureY2: on;
+            }
+            [domain=site.com], [domain=regex:/^test\\.site\\.com$/] {
+                featureY1: maybe;
+                featureY3: off;
+            }
+            [host=**.site.com] {
+                featureY2: off;
+                featureY3: on;
+            }
+            `,
+                    url: 'https://sub.sub.site.com/articles/123',
+                    expected: { featureY1: 'maybe', featureY2: 'off', featureY3: 'on' },
+                    description: 'Tests regex path with AND, OR between domains, and ** in host (multi-segment).'
+                },
+                {
+                    wfrText: `
+            [domain=example.com], [host=www.site.com] {
+                featureZ1: on;
+                featureZ2: off;
+            }
+            [domain=example.com][path=/secure/**][query.auth=regex:/^Bearer\\s\\w+$/] {
+                featureZ1: off;
+                featureZ2: on;
+                featureZ3: yes;
+            }
+            [host=www.example.com][path=/secure/data] {
+                featureZ1: maybe;
+                featureZ3: no;
+            }
+            [query.auth=**] {
+                featureZ2: maybe;
+            }
+            `,
+                    url: 'https://www.example.com/secure/data?auth=Bearer token123',
+                    expected: { featureZ1: 'maybe', featureZ2: 'maybe', featureZ3: 'no' },
+                    description: 'Tests OR with domain/host, AND with ** in path and regex query, exact path override, and ** in query.'
+                },
+                {
+                    wfrText: `
+            [host=**.example.com] {
+                featureW1: on;
+                featureW2: off;
+            }
+            [domain=example.com][path=regex:/^\\/post\\/[a-z]+$/i] {
+                featureW1: off;
+                featureW3: on;
+            }
+            [host=sub.example.com], [host=regex:/^admin\\d+\\.example\\.com$/] {
+                featureW2: on;
+                featureW4: yes;
+            }
+            [domain=example.com][path=/post/test][query.id=?] {
+                featureW1: maybe;
+                featureW3: off;
+                featureW5: on;
+            }
+            `,
+                    url: 'https://sub.example.com/post/test?id=1',
+                    expected: { featureW1: 'maybe', featureW2: 'on', featureW3: 'off', featureW4: 'yes', featureW5: 'on' },
+                    description: 'Tests ** in host, regex path, OR with exact/regex hosts, and AND with ? in query.'
+                },
+                {
+                    wfrText: `
+            [domain=site.com][path=/dashboard] {
+                featureV1: on;
+                featureV2: off;
+            }
+            [host=www.site.com], [domain=regex:/^test\\.site\\.com$/] {
+                featureV1: off;
+                featureV3: on;
+            }
+            [path=:/broken[ {  // Malformed regex
+                featureV1: yes;
+            }
+            [domain=site.com][query.mode][path=/dashboard/**] {
+                featureV1: maybe;
+                featureV2: on;
+                featureV4: yes;
+            }
+            `,
+                    url: 'https://www.site.com/dashboard/main?mode=test',
+                    expected: { featureV1: 'maybe', featureV2: 'on', featureV3: 'on', featureV4: 'yes' },
+                    description: 'Tests AND with exact path, OR with host/regex domain, malformed rule skip, and AND with ** in path.'
+                },
+
+                // Updated Glob-Specific Test Cases with New Syntax
+                {
+                    wfrText: '[host=sub?.example.com] {\n  featureG1: on;\n}',
+                    url: 'https://sub1.example.com/',
+                    expected: { featureG1: 'on' },
+                    description: 'Tests ? in host matching single character.'
+                },
+                {
+                    wfrText: '[host=sub?.example.com] {\n  featureG2: on;\n}',
+                    url: 'https://sub12.example.com/',
+                    expected: {},
+                    description: 'Tests ? in host not matching two characters.'
+                },
+                {
+                    wfrText: '[host=*sub?.example.com] {\n  featureG3: on;\n}',
+                    url: 'https://prefixsub1.example.com/',
+                    expected: { featureG3: 'on' },
+                    description: 'Tests mixed * and ? in host.'
+                },
+                {
+                    wfrText: '[host=*.sub.example.com] {\n  featureG4: on;\n}',
+                    url: 'https://test.sub.example.com/',
+                    expected: { featureG4: 'on' },
+                    description: 'Tests * with nested subdomain.'
+                },
+                {
+                    wfrText: `
+            [host=**.example.com] {
+                featureG5: on;
+            }
+            [host=test.example.com] {
+                featureG5: off;
+            }
+            `,
+                    url: 'https://test.example.com/',
+                    expected: { featureG5: 'off' },
+                    description: 'Tests ** in host overridden by exact match.'
+                },
+                {
+                    wfrText: '[path=/page??] {\n  featureG6: on;\n}',
+                    url: 'https://example.com/page12',
+                    expected: { featureG6: 'on' },
+                    description: 'Tests multiple ? in path matching two characters.'
+                },
+                {
+                    wfrText: '[path=/blog/*?] {\n  featureG7: on;\n}',
+                    url: 'https://example.com/blog/post1',
+                    expected: { featureG7: 'on' },
+                    description: 'Tests mixed * and ? in path.'
+                },
+                {
+                    wfrText: '[path=/any*/here*/**/house] {\n  featureG8: on;\n}',
+                    url: 'https://example.com/anything/here/my/you/our/house',
+                    expected: { featureG8: 'on' },
+                    description: 'Tests ** in path matching any depth.'
+                },
+                {
+                    wfrText: '[path=/blog*] {\n  featureG9: on;\n}',
+                    url: 'https://example.com/blog123',
+                    expected: { featureG9: 'on' },
+                    description: 'Tests * in path as prefix within segment.'
+                },
+                {
+                    wfrText: '[path=/blog**] {\n  featureG10: on;\n}',
+                    url: 'https://example.com/blog/sub/post',
+                    expected: { featureG10: 'on' },
+                    description: 'Tests ** in path matching multiple segments.'
+                },
+                {
+                    wfrText: '[query.id=?] {\n  featureG11: on;\n}',
+                    url: 'https://example.com/?id=a',
+                    expected: { featureG11: 'on' },
+                    description: 'Tests ? in query matching single character.'
+                },
+                {
+                    wfrText: '[query.id=?] {\n  featureG12: on;\n}',
+                    url: 'https://example.com/?id=ab',
+                    expected: {},
+                    description: 'Tests ? in query not matching two characters.'
+                },
+                {
+                    wfrText: `
+            [host=**example.com][path=/test*][query.mode=?] {
+                featureG13: on;
+            }
+            `,
+                    url: 'https://sub.example.com/test123?mode=x',
+                    expected: { featureG13: 'on' },
+                    description: 'Tests ** in host, * in path, and ? in query with AND logic.'
+                },
+                {
+                    wfrText: '[host=WWW?.example.com] {\n  featureG14: on;\n}',
+                    url: 'https://www1.example.com/',
+                    expected: {},
+                    description: 'Tests case-sensitive ? in host failing due to case mismatch.'
+                },
+                {
+                    wfrText: '[host=**.example.com] {\n  featureG15: on;\n}',
+                    url: 'https://sub.sub.example.com/',
+                    expected: { featureG15: 'on' },
+                    description: 'Tests ** in host matching multiple subdomain levels.'
+                },
+                {
+                    wfrText: `
+            [host=*sub.example.com], [path=/page**] {
+                featureG16: on;
+            }
+            `,
+                    url: 'https://testsub.example.com/page/sub/depth',
+                    expected: { featureG16: 'on' },
+                    description: 'Tests OR logic with * in host and ** in path.'
+                },
+                {
+                    wfrText: `
+            [host=test?.example.com][path=/blog*?] {
+                featureG17: on;
+                featureX1: on;
+            }
+            [host=**sub.example.com], [path=**post] {
+                featureG17: off;
+            }
+            [host=apple.com], [path=**post] {
+                featureX1: off;
+            }
+            `,
+                    url: 'https://test1.example.com/blog12',
+                    expected: { featureG17: 'on', featureX1: 'on' },
+                    description: 'Tests AND with mixed ? and *, OR with **, no override due to specificity.'
+                },
+
+                // New Test Cases for Mixed Glob Patterns
+                {
+                    wfrText: '[path=/blog/**?] {\n  featureM1: on;\n}',
+                    url: 'https://example.com/blog/sub/post1',
+                    expected: { featureM1: 'on' },
+                    description: 'Tests mixed ** and ? in path matching multi-segment ending with single character.'
+                },
+                {
+                    wfrText: '[path=/*?/**] {\n  featureM2: on;\n}',
+                    url: 'https://example.com/x1/sub/path',
+                    expected: { featureM2: 'on' },
+                    description: 'Tests mixed * and ? and ** in path for specific segment constraints.'
+                },
+                {
+                    wfrText: '[host=*?sub.example.com] {\n  featureM3: on;\n}',
+                    url: 'https://x1sub.example.com/',
+                    expected: { featureM3: 'on' },
+                    description: 'Tests mixed * and ? in host matching single character before sub.'
+                },
+                {
+                    wfrText: '[query.id=**?] {\n  featureM4: on;\n}',
+                    url: 'https://example.com/?id=abc.def1',
+                    expected: { featureM4: 'on' },
+                    description: 'Tests mixed ** and ? in query matching multi-segment ending with single character.'
+                },
+                {
+                    wfrText: `
+            [host=**example.com][path=/test*?][query.mode=**] {
+                featureM5: on;
+            }
+            `,
+                    url: 'https://sub.sub.example.com/testab1?mode=x.y',
+                    expected: { featureM5: 'on' },
+                    description: 'Tests mixed glob patterns across host (**), path (*?), and query (**).'
+                }
+            ];
+
+            console.log('Running predefined test cases:');
+            const stringify = (obj) => JSON.stringify(obj, Object.keys(obj).sort());
+            testCases.forEach((test, index) => {
+                try {
+                    const features = getWfrFeatures(test.wfrText, test.url);
+                    const passed = stringify(features) === stringify(test.expected);
+                    console.log(`Test ${index + 1}:`, {
+                        url: test.url,
+                        result: features,
+                        expected: test.expected,
+                        passed: passed ? '✓' : '✗',
+                        description: test.description || 'No description'
+                    });
+                    console.log(`Test ${index + 1} - features:`, features);
+                    console.log(`Test ${index + 1} - expected:`, test.expected);
+                } catch (error) {
+                    console.error(`Test ${index + 1} Error:`, error);
+                }
+            });
+        });
+
+    }, 100);
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,410 @@
+<html>
+
+<body>
+    <script>
+        // Optimized iterative matchGlob function
+
+        function matchGlob(p, s) {
+            const firstWild = Math.min(p.indexOf('*') + 1 || Infinity, p.indexOf('?') + 1 || Infinity) - 1;
+            if (firstWild >= Infinity) return p === s;
+            if (firstWild > 0 && !s.startsWith(p.substring(0, firstWild))) return false;
+
+            const n = p.length, m = s.length;
+            let top = 0;
+            const stack = new Array(m - firstWild + 1); // Max possible positions ≤ string length + 1
+            stack[0] = { i: firstWild, j: firstWild };
+
+            while (top >= 0) {
+                let { i, j } = stack[top--]; // Pop by decrementing top
+
+                while (i < n && p.charCodeAt(i) !== 42 && p.charCodeAt(i) !== 63) { // Literal match
+                    if (j >= m || p.charCodeAt(i) !== s.charCodeAt(j)) break;
+                    i++; j++;
+                }
+                if (i === n) {
+                    if (j === m) return true;
+                    continue;
+                }
+
+                let c = p.charCodeAt(i);
+                if (c === 42) { // '*' or '**'
+                    if (i + 1 < n && p.charCodeAt(i + 1) === 42) { // '**'
+                        i += 2; // Skip '**'
+                        if (i >= n) return true; // Trailing '**' matches anything
+                        for (let x = m; x >= j; x--) { // Inline stack push
+                            stack[++top] = { i, j: x };
+                        }
+                    } else { // Single '*'
+                        i++; // Skip '*'
+                        let end = j;
+                        while (end < m && s.charCodeAt(end) !== 47 && s.charCodeAt(end) !== 46) end++; // Segment end
+                        if (i === n) {
+                            if (end === m) return true;
+                            continue;
+                        }
+                        for (let x = end; x >= j; x--) { // Inline stack push
+                            stack[++top] = { i, j: x };
+                        }
+                    }
+                } else if (c === 63) { // '?'
+                    if (j < m && s.charCodeAt(j) !== 47 && s.charCodeAt(j) !== 46) { // Inline single push
+                        stack[++top] = { i: i + 1, j: j + 1 };
+                    }
+                }
+            }
+
+            return false;
+        }
+        let iterationN = 80000;
+        let iterationM = 4000;
+
+        // Array of test cases with various pattern/text combinations and iteration counts.
+        const testCases = [
+
+            {
+                desc: "TEST-A",
+                pattern: '/path/scenario?-*.demo/hi/this/**/images/logo-v*?.ico',
+                text: '/path/scenarioX-abc.demo/hi/this/path/to/images/logo-v12.ico',
+                expected: true,
+                iterations: iterationN
+            },
+            {
+                desc: "TEST-B1",
+                pattern: '/path/scenario?-*.demo/hi/this/*/images/logo-v*?.ico',
+                text: '/path/scenarioX-abc.demo/hi/this/path/to/images/logo-v12.ico',
+                expected: false,
+                iterations: iterationN
+            },
+            {
+                desc: "TEST-B2",
+                pattern: '/path/scenario?-*.demo/hi/this/*/*/images/logo-v*?.ico',
+                text: '/path/scenarioX-abc.demo/hi/this/path/to/images/logo-v12.ico',
+                expected: true,
+                iterations: iterationN
+            },
+            {
+                desc: "TEST-C0",
+                pattern: '/path/scenario.demo/hi/this/*/images/logo-.ico',
+                text: '/path/scenario.demo/hi/this/path/to/images/logo-.ico',
+                expected: false,
+                iterations: iterationN
+            },
+            {
+                desc: "TEST-C1",
+                pattern: '/path/scenario.demo/**is/*/images/lo*-.ico',
+                text: '/path/scenario.demo/hi/this/path/images/logo-.ico',
+                expected: true,
+                iterations: iterationN
+            },
+            {
+                desc: "TEST-C2",
+                pattern: '/path/scenario.demo/**is/*/images/lo*-.ico',
+                text: '/path/scenario.demo/hi/thid/path/images/logo-.ico',
+                expected: false,
+                iterations: iterationN
+            },
+            {
+                desc: "TEST-C3",
+                pattern: '/path/scenario.demo/**is/*/images/lo*-.ico',
+                text: '/path/scenario.demo/hi/this/path/to/images/logok.ico',
+                expected: false,
+                iterations: iterationN
+            },
+            {
+                desc: "TEST-E",
+                pattern: '/path/scenario?-*.demo/hi/this/**/images/logo-v*?.ico',
+                text: '/path/scenarioX.demo/hi/this/x/images/logo-v1.ico',
+                expected: false,
+                iterations: iterationN
+            },
+            {
+                desc: "TEST-F",
+                pattern: '/path/scenario?-*.demo/hi/this/**/images/logo-v*?.ico',
+                text: '/path/scenario1-.demo/hi/this/x/images/logo-v1.ico',
+                expected: true,
+                iterations: iterationN
+            },
+            {
+                desc: "TEST-G",
+                pattern: 'test?file*.txt',
+                text: 'testXfile123.txt',
+                expected: true,
+                iterations: iterationN
+            },
+            {
+                desc: "TEST-H",
+                pattern: 'test?file*.txt',
+                text: 'testXfile.txt',
+                expected: true,
+                iterations: iterationN
+            },
+            {
+                desc: "TEST-I",
+                pattern: 'test?file*.txt',
+                text: 'test/file.txt',  // Should fail because ? doesn't match /
+                expected: false,
+                iterations: iterationN
+            },
+            {
+                desc: "TEST-J",
+                pattern: '**/*.js',
+                text: 'src/code/test.js',
+                expected: true,
+                iterations: iterationN
+            },
+
+            // Your original test cases
+            {
+                desc: "Short text, no glob, simple pattern",
+                pattern: "hello",
+                text: "hello",
+                expected: true,
+                iterations: iterationN
+            },
+            {
+                desc: "Short text, glob, simple pattern",
+                pattern: "he*o",
+                text: "hello",
+                expected: true,
+                iterations: iterationN
+            },
+            {
+                desc: "Short text, mixed glob with '?'",
+                pattern: "h?llo",
+                text: "hello",
+                expected: true,
+                iterations: iterationN
+            },
+            {
+                desc: "Complicated pattern, short text",
+                pattern: "h*?llo",
+                text: "heeeello",
+                expected: true,
+                iterations: iterationN
+            },
+            {
+                desc: "Long text, no glob",
+                pattern: (function () {
+                    let str = "";
+                    for (let i = 0; i < 1000; i++) {
+                        str += String.fromCharCode(97 + (i % 26));
+                    }
+                    return str;
+                })(),
+                text: (function () {
+                    let str = "";
+                    for (let i = 0; i < 1000; i++) {
+                        str += String.fromCharCode(97 + (i % 26));
+                    }
+                    return str;
+                })(),
+                expected: true,
+                iterations: iterationM
+            },
+            {
+                desc: "Long text, with glob",
+                pattern: "start*end",
+                text: (function () {
+                    let str = "start";
+                    for (let i = 0; i < 1000; i++) {
+                        str += String.fromCharCode(97 + (i % 26));
+                    }
+                    str += "end";
+                    return str;
+                })(),
+                expected: true,
+                iterations: iterationM
+            },
+            {
+                desc: "Mixed glob, complicated pattern",
+                pattern: "a*?b*c?d*e?f",
+                text: "a123b45c6d7e8f",
+                expected: true,
+                iterations: iterationN
+            },
+            {
+                desc: "No match, complicated pattern",
+                pattern: "abc*def",
+                text: "abcxyz",
+                expected: false,
+                iterations: iterationN
+            },
+
+            // New complex test cases
+            {
+                desc: "Multiple consecutive stars",
+                pattern: "a***b",
+                text: "ab",
+                expected: true,
+                iterations: iterationN
+            },
+            {
+                desc: "Multiple stars with gaps",
+                pattern: "a*b*c",
+                text: "a123b456c",
+                expected: true,
+                iterations: iterationN
+            },
+            {
+                desc: "Multiple stars with no match",
+                pattern: "a*b*c",
+                text: "a123b",
+                expected: false,
+                iterations: iterationN
+            },
+            {
+                desc: "Stars with boundaries (dot)",
+                pattern: "file*.txt",
+                text: "file123.txt",
+                expected: true,
+                iterations: iterationN
+            },
+            {
+                desc: "Stars with boundaries (slash)",
+                pattern: "dir/*",
+                text: "dir/file",
+                expected: true,
+                iterations: iterationN
+            },
+            {
+                desc: "Stars with boundary",
+                pattern: "dir/*",
+                text: "dir/file/extra",
+                expected: false,
+                iterations: iterationN
+            },
+            {
+                desc: "Stars with boundary",
+                pattern: "dir/*/*",
+                text: "dir/file/extra",
+                expected: true,
+                iterations: iterationN
+            },
+            {
+                desc: "Multiple question marks",
+                pattern: "a??d",
+                text: "abcd",
+                expected: true,
+                iterations: iterationN
+            },
+            {
+                desc: "Multiple question marks (2)",
+                pattern: "*/a??d",
+                text: "test/abcd",
+                expected: true,
+                iterations: iterationN
+            },
+            {
+                desc: "Mixed wildcards with boundaries",
+                pattern: "a*b?c.d*e",
+                text: "a123b4c.d5e",
+                expected: true,
+                iterations: iterationN
+            },
+            {
+                desc: "Empty pattern",
+                pattern: "",
+                text: "",
+                expected: true,
+                iterations: iterationN
+            },
+            {
+                desc: "Empty text with star",
+                pattern: "*",
+                text: "",
+                expected: true,
+                iterations: iterationN
+            },
+            {
+                desc: "Single star pattern",
+                pattern: "*",
+                text: "anything",
+                expected: true,
+                iterations: iterationN
+            },
+            {
+                desc: "Trailing star with mismatch",
+                pattern: "abc*",
+                text: "ab",
+                expected: false,
+                iterations: iterationN
+            },
+            {
+                desc: "Leading star",
+                pattern: "*xyz",
+                text: "abcxyz",
+                expected: true,
+                iterations: iterationN
+            },
+            {
+                desc: "Complex pattern with no match",
+                pattern: "a*b?c*d",
+                text: "a123b4c",
+                expected: false,
+                iterations: iterationN
+            },
+            {
+                desc: "Pattern longer than text",
+                pattern: "abc?def",
+                text: "abc",
+                expected: false,
+                iterations: iterationN
+            },
+            {
+                desc: "Text longer than pattern with wildcards (1)",
+                pattern: "a*b",
+                text: "a123b456",
+                expected: false,
+                iterations: iterationN
+            },
+            {
+                desc: "Text longer than pattern with wildcards (2)",
+                pattern: "a*b456",
+                text: "a123b456",
+                expected: true,
+                iterations: iterationN
+            },
+            {
+                desc: "Consecutive question marks with boundary",
+                pattern: "???.txt",
+                text: "abc.txt",
+                expected: true,
+                iterations: iterationN
+            },
+            {
+                desc: "Nested wildcards with separators",
+                pattern: "*/file?.*",
+                text: "path/file1.txt",
+                expected: true,
+                iterations: iterationN
+            }
+        ];
+
+        // Run each test case, measuring the time taken over many iterations.
+        console.log("Starting benchmark tests for matchGlob...");
+        let j = 0;
+        for (const test of testCases) {
+            const { desc, pattern, text, iterations } = test;
+            const t1 = performance.now();
+            let result;
+            for (let i = 0; i < iterations; i++) {
+                result = matchGlob(pattern, text);
+            }
+            const t2 = performance.now();
+            if (result !== test.expected) {
+                console.log(`TEST ${j + 1} FAILED: \n${desc}\nResult:${result}\nExpected:${test.expected}`)
+
+            } else {
+
+                console.log(`Test   ${j + 1}: ${desc}`)
+                console.log(`Time   ${j + 1}: ${(t2 - t1).toFixed(4)}`);
+                console.log(`Result ${j + 1}: ${result} - ${result == test.expected ? "PASS" : "FAILED"}`);
+
+            }
+            j++;
+        }
+
+    </script>
+</body>
+
+</html>

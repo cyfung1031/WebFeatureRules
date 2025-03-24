@@ -1,0 +1,97 @@
+<html>
+
+<body>
+
+    <div>
+
+    </div>
+</body>
+
+<script>
+    function matchGlob(p, s) {
+        // Fast check: if there are no wildcards, compare directly.
+        if (p.indexOf('*') === -1 && p.indexOf('?') === -1) return p === s;
+
+        const n = p.length, m = s.length;
+        const M = new Array((n + 1) * (m + 1));
+        function f(i, j) {
+            const k = i * (m + 1) + j;
+            if (M[k] !== undefined) return M[k];
+            // Fast-forward through literal characters.
+            while (i < n && p.charCodeAt(i) !== 42 && p.charCodeAt(i) !== 63) {
+                if (j >= m || p.charCodeAt(i) !== s.charCodeAt(j)) return M[k] = false;
+                i++; j++;
+            }
+            if (i === n) return M[k] = (j === m);
+            if (j === m)
+                return M[k] = (p.charCodeAt(i) === 42 && i + 1 < n &&
+                    p.charCodeAt(i + 1) === 42 && i + 2 === n);
+            const c = p.charCodeAt(i);
+            if (c === 42) { // '*'
+                if (i + 1 < n && p.charCodeAt(i + 1) === 42)
+                    return M[k] = f(i + 2, j) || f(i, j + 1);
+                let a = s.indexOf('/', j), b = s.indexOf('.', j), end = m;
+                if (a >= 0) end = Math.min(end, a + 1);
+                if (b >= 0) end = Math.min(end, b + 1);
+                for (let x = j; x <= end; x++) {
+                    if (f(i + 1, x)) return M[k] = true;
+                }
+                return M[k] = false;
+            }
+            if (c === 63) // '?'
+                return M[k] = (s.charCodeAt(j) !== 47 &&
+                    s.charCodeAt(j) !== 46 && f(i + 1, j + 1));
+        }
+        return f(0, 0);
+    }
+
+    // Test cases
+    const tests = [
+        {
+            pattern: '/path/scenario?-*.demo/hi/this/**/images/logo-v*?.ico',
+            str: '/path/scenarioX-abc.demo/hi/this/path/to/images/logo-v12.ico',
+            expected: true
+        },
+        {
+            pattern: '/path/scenario?-*.demo/hi/this/**/images/logo-v*?.ico',
+            str: '/path/scenarioX.demo/hi/this/x/images/logo-v1.ico',
+            expected: false
+        },
+        {
+            pattern: '/path/scenario?-*.demo/hi/this/**/images/logo-v*?.ico',
+            str: '/path/scenario1-.demo/hi/this/x/images/logo-v1.ico',
+            expected: true
+        },
+        {
+            pattern: 'test?file*.txt',
+            str: 'testXfile123.txt',
+            expected: true
+        },
+        {
+            pattern: 'test?file*.txt',
+            str: 'testXfile.txt',
+            expected: true
+        },
+        {
+            pattern: 'test?file*.txt',
+            str: 'test/file.txt',  // Should fail because ? doesn't match /
+            expected: false
+        },
+        {
+            pattern: '**/*.js',
+            str: 'src/code/test.js',
+            expected: true
+        }
+    ];
+
+    // Run tests
+    tests.forEach((test, index) => {
+        const result = matchGlob(test.pattern, test.str);
+        console.log(`Test ${index + 1}: ${result === test.expected ? 'PASS' : 'FAIL'}`);
+        console.log(`Pattern: ${test.pattern}`);
+        console.log(`String: ${test.str}`);
+        console.log(`Expected: ${test.expected}, Got: ${result}\n`);
+    });
+</script>
+
+</html>
